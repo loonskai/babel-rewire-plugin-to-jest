@@ -1,0 +1,33 @@
+{
+  "name": "babel-rewire-plugin-to-jest",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "transform": "node --import=tsx src/main.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@babel/parser": "^7.25.6",
+    "@babel/traverse": "^7.25.6",
+    "@babel/types": "^7.25.6",
+    "@eslint/js": "^9.10.0",
+    "@types/babel__core": "^7.20.5",
+    "@types/babel__traverse": "^7.20.6",
+    "@types/babel-types": "^7.0.15",
+    "@types/eslint__js": "^8.42.3",
+    "@types/node": "^22.5.5",
+    "babel-types": "^6.26.0",
+    "enhanced-resolve": "^5.17.1",
+    "eslint": "^9.10.0",
+    "glob": "^11.0.0",
+    "recast": "^0.23.9",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2",
+    "typescript-eslint": "^8.5.0",
+    "webpack": "^5.94.0"
+  }
+}
