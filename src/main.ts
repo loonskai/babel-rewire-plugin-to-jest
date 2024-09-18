@@ -1,55 +1,45 @@
-import fs from "node:fs";
-import path from "node:path";
-import { Glob } from "glob";
-import babel from "@babel/core";
-import * as parser from "@babel/parser";
-import recast from "recast";
-import resolve from "enhanced-resolve";
-import { codemonPlugin } from "./codemonPlugin.ts";
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
+import { transformFile } from './transformFile.js';
+import { getWebpackResolver } from './webpackResolver.js';
 
-function transform(sourceCode: string): string {
-  const ast = recast.parse(sourceCode, {
-    parser: {
-      parse(source: string) {
-        return parser.parse(source, {
-          // filename,
-          tokens: true,
-          sourceType: "module",
-          // plugins: ["typescript"],
-        });
-      },
-    },
-  });
+const argv = await yargs(hideBin(process.argv))
+    .option('webpackConfig', {
+        alias: 'w',
+        describe: 'Path to the Webpack configuration file (used for module resolution)',
+        type: 'string',
+        demandOption: true,
+    })
+    .option('files', {
+        alias: 'f',
+        describe: 'A file containing the list of test files to convert',
+        type: 'string',
+        demandOption: true,
+    })
+    .help().argv;
 
-  babel.transformFromAstSync(ast, sourceCode, {
-    code: false,
-    cloneInputAst: false,
-    configFile: false,
-    plugins: [codemonPlugin],
-  });
+async function processFiles(filesPath: string) {
+    try {
+        const absolutePath = path.resolve(process.cwd(), filesPath);
+        const filesContent = await fs.readFile(absolutePath, 'utf-8');
+        const paths = filesContent.split('/\r?\n/');
+        const webpackConfigPath = path.resolve(process.cwd(), argv.webpackConfig);
+        const webpackResolver = await getWebpackResolver(webpackConfigPath);
 
-  return recast.print(ast).code;
+        for await (const testFilePath of paths) {
+            const trimmedTestFilePath = testFilePath.trim();
+            if (trimmedTestFilePath) {
+                console.log(`Processing file: ${testFilePath}`);
+                await transformFile(trimmedTestFilePath, webpackResolver);
+            }
+        }
+
+        console.log('Finished Codemon run');
+    } catch (error) {
+        console.error(`Error processing files: ${error}`);
+    }
 }
 
-function transformFile(fileRelativePath: string) {
-  const filePath = path.resolve(process.cwd(), fileRelativePath);
-  // console.log(path.resolve(filePath, "example/withBulkMoveCopy"));
-
-  const webpackConfig = import("conf/webpack/webpack.prod.js");
-
-  const inputCode = fs.readFileSync(filePath, "utf-8");
-  const outputCode = transform(inputCode);
-
-  console.log(`modified: ${filePath}`);
-  fs.writeFileSync(filePath, outputCode);
-}
-
-const filesPattern = process.argv[2];
-
-if (!filesPattern) throw new Error("Missing source files glob argument");
-
-const g = new Glob(filesPattern, {});
-
-for await (const path of g) {
-  transformFile(path);
-}
+processFiles(argv.files);
