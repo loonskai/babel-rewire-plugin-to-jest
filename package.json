@@ -1,10 +1,10 @@
 {
   "name": "babel-rewire-plugin-to-jest",
   "version": "1.0.0",
-  "description": "A codemon to replace Rewire module mocks with Jest mocks",
+  "description": "A codemod to replace Rewire module mocks with Jest mocks",
   "main": "src/main.ts",
   "bin": {
-    "babel-rewire-plugin-to-jest": "./bin/codemon.js"
+    "babel-rewire-plugin-to-jest": "./bin/codemod.js"
   },
   "scripts": {
     "build": "tsc",
@@ -24,6 +24,7 @@
     "@types/babel-types": "^7.0.15",
     "@types/eslint__js": "^8.42.3",
     "@types/node": "^22.5.5",
+    "@types/yargs": "^17.0.33",
     "babel-types": "^6.26.0",
     "enhanced-resolve": "^5.17.1",
     "eslint": "^9.10.0",
