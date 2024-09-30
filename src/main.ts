@@ -43,4 +43,4 @@ async function processFiles(filesPath: string) {
   }
 }
 
-processFiles(argv.files);
+await processFiles(argv.files);

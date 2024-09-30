@@ -1,6 +1,6 @@
 import path from "node:path";
 import { PluginObj, types as t, template } from "@babel/core";
-import { ResolveFunctionAsync } from "enhanced-resolve";
+import { ResolveFunction } from "enhanced-resolve";
 import { getModuleDependenciesMap } from "./getModuleDependenciesMap.js";
 
 const ROOT_PATH = path.resolve(process.cwd(), "./src");
@@ -10,20 +10,17 @@ const REWIRE_CONSTANTS = {
 
 function resolveModulePath(
   filePath: string,
-  resolver: ResolveFunctionAsync,
+  resolver: ResolveFunction,
   importPath: string
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const contextPath = path.isAbsolute(importPath)
-      ? ROOT_PATH
-      : path.dirname(filePath);
-    resolver(contextPath, importPath, (err, fullPath) => {
-      if (err || !fullPath) {
-        return reject(err);
-      }
-      resolve(fullPath);
-    });
-  });
+): string {
+  const contextPath = path.isAbsolute(importPath)
+    ? ROOT_PATH
+    : path.dirname(filePath);
+  const fullPath = resolver(contextPath, importPath);
+  if (!fullPath) {
+    throw new Error(`Cannot resolve full path for ${fullPath}: no full path`);
+  }
+  return fullPath;
 }
 
 export interface CodemodPluginOptions {
@@ -34,7 +31,7 @@ export interface CodemodPluginOptions {
 export function getCodemodPlugin(
   sourceCode: string,
   filePath: string,
-  resolver: ResolveFunctionAsync
+  resolver: ResolveFunction
 ) {
   return function codemodPlugin({
     types: t,
@@ -43,8 +40,7 @@ export function getCodemodPlugin(
     let topDescribePath = null;
     return {
       visitor: {
-        // TODO: Remove async
-        async ImportDeclaration(path) {
+        ImportDeclaration(path) {
           if (
             !path.node.specifiers.some(
               (specifier) =>
@@ -55,15 +51,16 @@ export function getCodemodPlugin(
           }
 
           const mockedModulePath = path.node.source.value;
-          const moduleFullPath = await resolveModulePath(
+          const moduleFullPath = resolveModulePath(
             filePath,
             resolver,
             mockedModulePath
           );
-          const moduleDependenciesMap = await getModuleDependenciesMap(
+          const moduleDependenciesMap = getModuleDependenciesMap(
             mockedModulePath,
             moduleFullPath
           );
+          console.log("moduleDependenciesMap", moduleDependenciesMap);
 
           const { referencePaths = [] } =
             path.scope.getBinding(REWIRE_CONSTANTS.__RewireAPI__) || {};
@@ -80,7 +77,10 @@ export function getCodemodPlugin(
                   moduleDependenciesMap.imports[fnName.value] ||
                   moduleDependenciesMap.exports[fnName.value];
                 if (!dependencyModuleInfo) {
-                  // CAN'T FIND EXPORT OR IMPORT - MANUAL RESOLUTION NEEDED
+                  console.log(
+                    "Cannot find export or import - manual resolution needed:",
+                    fnName
+                  );
                   return;
                 }
                 const jestModuleMockAST = buildJestMockedModuleAST({
@@ -88,10 +88,13 @@ export function getCodemodPlugin(
                   dependencyModuleInfo,
                   name: fnName.value,
                 });
-                if (topDescribePath) {
-                  // THIS MUST ALWAYS EXECUTE
-                  topDescribePath.insertBefore(jestModuleMockAST);
-                }
+                // TODO:
+                // 1: Find top descrive path
+                // 2. Check for existing jest.mock(dependencyModuleInfo.path) instead of creating a new one each time
+                // if (topDescribePath) {
+                // THIS MUST ALWAYS EXECUTE
+                path.insertBefore(jestModuleMockAST);
+                // }
                 const nodeAsString = getNodeAsString(sourceCode, fnValue);
                 path.replaceWith(
                   // @ts-expect-error TODO: Check babel types
